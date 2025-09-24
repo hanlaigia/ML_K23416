@@ -1,6 +1,5 @@
 # cách 1
 from bs4 import BeautifulSoup
-
 with open('../datasets/SalesTransactions/SalesTransactions.xml', 'r') as f:
     data = f.read()
 
