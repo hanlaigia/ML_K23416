@@ -1,12 +1,13 @@
-from PyQt6.QtWidgets import QMessageBox
+from PyQt6.QtWidgets import QMessageBox, QMainWindow
 
 from retail_project.connectors.employee_connector import EmployeeConnector
+from retail_project.uis.EmployeeMainWindowEx import EmployeeMainWindowEx
 from retail_project.uis.LoginMainWindow import Ui_MainWindow
+
 
 class LoginMainWindowEx(Ui_MainWindow):
     def __init__(self):
         pass
-
     def setupUi(self, MainWindow):
         super().setupUi(MainWindow)
         self.MainWindow = MainWindow
@@ -14,12 +15,11 @@ class LoginMainWindowEx(Ui_MainWindow):
 
     def showWindow(self):
         self.MainWindow.show()
-
     def setupSignalAndSlot(self):
         self.pushButtonLogin.clicked.connect(self.process_login)
     def process_login(self):
         email=self.lineEditEmail.text()
-        pwd =self.lineEditPassword.text()
+        pwd=self.lineEditPassword.text()
         ec = EmployeeConnector()
         ec.connect()
         em = ec.login(email, pwd)
@@ -29,11 +29,16 @@ class LoginMainWindowEx(Ui_MainWindow):
             msg.setText("Login Failed, please check your account again")
             msg.setWindowTitle("Login Failed")
             msg.setStandardButtons(QMessageBox.StandardButton.Ok)
+            msg.exec()
         else:
-            msg = QMessageBox()
-            msg.setIcon(QMessageBox.Icon.Information)
-            msg.setText("Congratulations! login successful!!!")
-            msg.setWindowTitle("Login OKOK")
-            msg.setStandardButtons(QMessageBox.StandardButton.Ok)
+            self.gui_emp=EmployeeMainWindowEx()       #self. --> bien global    , con yi_emp --> bien local (bat xong
+            # tat)
+            self.gui_emp.setupUi(QMainWindow())
+            self.gui_emp.showWindow()
+            self.MainWindow.close()
+            # msg = QMessageBox()
+            # msg.setIcon(QMessageBox.Icon.Information)
+            # msg.setText("Congratulations, you are logged in successfully")
+            # msg.setWindowTitle("Login Successful")
+            # msg.setStandardButtons(QMessageBox.StandardButton.Ok)
 
-        msg.exec()

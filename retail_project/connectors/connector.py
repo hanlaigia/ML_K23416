@@ -59,3 +59,23 @@ class Connector:
         except:
             traceback.print_exc()
         return None
+    def fetchall(self, sql, val): #trả về 1 đối số/ 1 dòng dữ liệu thì dùng fetchone, đăng nhập chỉ là 1 chức năng
+        # trong
+        # fetch
+        # one
+        try:
+            cursor = self.conn.cursor()
+            cursor.execute(sql, val)
+            dataset = cursor.fetchall()
+            cursor.close()
+            return dataset
+        except:
+            traceback.print_exc()
+        return None
+    def insert_one(self,sql,val):
+        cursor = self.conn.cursor()
+        cursor.execute(sql, val)
+        self.conn.commit()
+        result = cursor.rowcount
+        cursor.close()
+        return result
