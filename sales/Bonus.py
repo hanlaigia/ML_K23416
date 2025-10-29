@@ -26,7 +26,6 @@ def getConnect():
         return None
 
 
-# Hàm hỗ trợ query
 def queryDataset(conn, sql):
     cursor = conn.cursor()
     cursor.execute(sql)
@@ -38,7 +37,7 @@ def queryDataset(conn, sql):
 conn = getConnect()
 
 # =====================================================================
-# (1) PHÂN LOẠI KHÁCH HÀNG THEO TÊN PHIM
+# (1) KHÁCH HÀNG THEO TỪNG PHIM
 # =====================================================================
 def customers_by_film(conn):
     sql = """
@@ -54,42 +53,29 @@ def customers_by_film(conn):
         ORDER BY f.title, customer_name;
     """
     df = queryDataset(conn, sql)
-
-    print("\n================= (1) KHÁCH HÀNG THEO TỪNG PHIM =================")
-    for film_title, group in df.groupby("film_title"):
-        print(f"\n--- PHIM: {film_title} ---")
-        for _, row in group.iterrows():
-            print(f"CustomerID {row['customer_id']} - {row['customer_name']}")
-
     return df
 
 
 # =====================================================================
-# (2) PHÂN LOẠI KHÁCH HÀNG THEO CATEGORY
+# (2) KHÁCH HÀNG THEO CATEGORY
 # =====================================================================
 def customers_by_category(conn):
     sql = """
-        SELECT DISTINCT
+        SELECT 
             cat.category_id,
-            cat.name AS category_name,
+            ANY_VALUE(cat.name) AS category_name,
             c.customer_id,
-            CONCAT(c.first_name, ' ', c.last_name) AS customer_name
-        FROM customer c
-        JOIN rental r ON c.customer_id = r.customer_id
-        JOIN inventory i ON r.inventory_id = i.inventory_id
-        JOIN film f ON i.film_id = f.film_id
-        JOIN film_category fc ON f.film_id = fc.film_id
-        JOIN category cat ON fc.category_id = cat.category_id
-        ORDER BY cat.name, customer_name;
+            ANY_VALUE(CONCAT(c.first_name, ' ', c.last_name)) AS customer_name
+        FROM category cat
+        JOIN film_category fc ON cat.category_id = fc.category_id
+        JOIN film f ON fc.film_id = f.film_id
+        JOIN inventory i ON f.film_id = i.film_id
+        JOIN rental r ON i.inventory_id = r.inventory_id
+        JOIN customer c ON r.customer_id = c.customer_id
+        GROUP BY cat.category_id, c.customer_id
+        ORDER BY category_name, customer_name;
     """
     df = queryDataset(conn, sql)
-
-    print("\n================= (2) KHÁCH HÀNG THEO TỪNG CATEGORY =================")
-    for category_name, group in df.groupby("category_name"):
-        print(f"\n--- CATEGORY: {category_name} ---")
-        for _, row in group.iterrows():
-            print(f"CustomerID {row['customer_id']} - {row['customer_name']}")
-
     return df
 
 
@@ -112,18 +98,8 @@ def customer_interest_clusters(conn, k=4):
     df = queryDataset(conn, sql)
 
     X = df[['total_rentals', 'unique_films', 'unique_inventory_cnt']]
-    model = KMeans(n_clusters=k, random_state=42)
+    model = KMeans(n_clusters=k, random_state=42, n_init=10)
     df['cluster'] = model.fit_predict(X)
-
-    print("\n================= (3) K-MEANS CLUSTERING KHÁCH HÀNG =================")
-    print(f"Số cụm k = {k}")
-    for c_id, group in df.groupby("cluster"):
-        print(f"\n--- CỤM {c_id} ---")
-        for _, row in group.iterrows():
-            print(
-                f"{row['customer_id']:>3} | {row['customer_name']:<20} | "
-                f"rentals={row['total_rentals']}, films={row['unique_films']}, invs={row['unique_inventory_cnt']}"
-            )
 
     plt.figure(figsize=(5, 4))
     plt.scatter(df['total_rentals'], df['unique_films'], c=df['cluster'])
@@ -157,56 +133,86 @@ def index():
         <form method="post" class="text-center mb-4">
             <label class="mx-2 fw-semibold">Chọn chức năng:</label>
             <select name="task" class="form-select d-inline-block w-auto">
-                <option value="1">Khách hàng theo từng phim (bài 1)</option>
-                <option value="2">Khách hàng theo từng category (bài 2)</option>
-                <option value="3">Gom cụm K-Means mức độ quan tâm (bài 3)</option>
+                <option value="1" {% if task == '1' %}selected{% endif %}>Khách hàng theo từng phim (bài 1)</option>
+                <option value="2" {% if task == '2' %}selected{% endif %}>Khách hàng theo từng category (bài 2)</option>
+                <option value="3" {% if task == '3' %}selected{% endif %}>Gom cụm K-Means mức độ quan tâm (bài 3)</option>
             </select>
 
             <label class="mx-2 fw-semibold">K (cho bài 3):</label>
-            <input class="form-control d-inline-block w-auto" type="number" name="k" value="4" min="2" max="10"/>
+            <input class="form-control d-inline-block w-auto" type="number" name="k" value="{{ k_val }}" min="2" max="10"/>
 
             <button type="submit" class="btn btn-primary mx-2">Thực hiện</button>
         </form>
+
+        {% if task == '3' and clusters %}
+            <div class="text-center mb-3">
+                <h5 class="fw-bold text-success mb-3">Chọn cụm để xem chi tiết:</h5>
+                {% for c_id in clusters.keys() %}
+                    <form method="post" class="d-inline">
+                        <input type="hidden" name="task" value="3">
+                        <input type="hidden" name="k" value="{{ k_val }}">
+                        <input type="hidden" name="filter_cluster" value="{{ c_id }}">
+                        <button type="submit" class="btn btn-outline-primary btn-sm mx-1">Cụm {{ c_id }}</button>
+                    </form>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        {% if img %}
+            <div class="text-center mt-4">
+                <img src="data:image/png;base64,{{ img }}" class="img-fluid border rounded mb-4">
+            </div>
+        {% endif %}
 
         {% if table %}
             <div class="container mt-4">
                 {{ table|safe }}
             </div>
         {% endif %}
-
-        {% if img %}
-            <div class="text-center mt-4">
-                <img src="data:image/png;base64,{{ img }}" class="img-fluid border rounded">
-            </div>
-        {% endif %}
     </body>
     </html>
     """
 
+    k_val = 4
+    task = None
+    table_html = None
+    img64 = None
+    clusters = None
+
     if request.method == "POST":
         task = request.form.get("task")
+        k_val = int(request.form.get("k", 4))
 
         if task == "1":
             df = customers_by_film(conn)
             table_html = df.head(100).to_html(classes="table table-bordered table-sm", index=False)
-            return render_template_string(html, table=table_html)
 
         elif task == "2":
             df = customers_by_category(conn)
             table_html = df.head(100).to_html(classes="table table-bordered table-sm", index=False)
-            return render_template_string(html, table=table_html)
 
         elif task == "3":
-            k_raw = request.form.get("k")
-            try:
-                k_val = int(k_raw)
-            except:
-                k_val = 4
-            df, img64 = customer_interest_clusters(conn, k=k_val)
-            table_html = df.head(100).to_html(classes="table table-bordered table-sm", index=False)
-            return render_template_string(html, table=table_html, img=img64)
+            df, img64 = customer_interest_clusters(conn, k_val)
 
-    return render_template_string(html)
+            # Gom các cụm riêng biệt
+            clusters = {}
+            for c_id, group in df.groupby("cluster"):
+                clusters[c_id] = group
+
+            # Kiểm tra nếu có chọn lọc cụm cụ thể
+            filter_cluster = request.form.get("filter_cluster")
+            if filter_cluster is not None:
+                cluster_id = int(filter_cluster)
+                if cluster_id in clusters:
+                    df_show = clusters[cluster_id]
+                else:
+                    df_show = df
+            else:
+                df_show = df
+
+            table_html = df_show.head(100).to_html(classes="table table-bordered table-sm", index=False)
+
+    return render_template_string(html, table=table_html, img=img64, task=task, clusters=clusters, k_val=k_val)
 
 
 # =====================================================================
@@ -218,13 +224,6 @@ if __name__ == "__main__":
     print("Thực hiện 3 yêu cầu trong đề bài:")
     print(" (1) Liệt kê khách hàng theo từng phim họ đã thuê")
     print(" (2) Liệt kê khách hàng theo từng category, bỏ trùng lặp")
-    print(" (3) Gom cụm khách hàng bằng K-Means theo mức độ quan tâm")
+    print(" (3) Gom cụm khách hàng bằng K-Means theo mức độ quan tâm, có nút lọc cụm")
     print("===============================================\n")
-
-    # Hiển thị kết quả trên console trước
-    df_film = customers_by_film(conn)
-    df_cat = customers_by_category(conn)
-    df_clustered, _img = customer_interest_clusters(conn, k=4)
-
-    # Sau đó mở web để xem lại kết quả
     app.run()
