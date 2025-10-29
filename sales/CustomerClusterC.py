@@ -1,9 +1,6 @@
 from flask import Flask, request, render_template_string
 from flaskext.mysql import MySQL
 import pandas as pd
-import matplotlib.pyplot as plt
-import seaborn as sns
-import plotly.express as px
 from sklearn.cluster import KMeans
 import numpy as np
 import sys, time
@@ -61,7 +58,7 @@ def runKMeans(df, columns, cluster):
 # HIỂN THỊ KHÁCH HÀNG TRÊN CONSOLE
 # ==============================
 def showCustomersByClusterConsole(conn, df2, clusterCount):
-    print("\n===================== HIỂN THỊ TRÊN CONSOLE =====================")
+    print(f"\n===================== K = {clusterCount} =====================")
     for c in range(clusterCount):
         print(f"\n===== CLUSTER {c} =====")
         customer_ids = df2[df2["cluster"] == c]["CustomerId"].tolist()
@@ -74,6 +71,17 @@ def showCustomersByClusterConsole(conn, df2, clusterCount):
         print(df.to_string(index=False))
         sys.stdout.flush()
         time.sleep(0.2)
+
+# ==============================
+# CHẠY CLUSTER TRÊN CONSOLE KHI KHỞI ĐỘNG
+# ==============================
+def showAllClustersAtStartup():
+    columns = ['Age', 'Annual Income', 'Spending Score']
+    for k in [4, 5, 6]:
+        df_clustered, _ = runKMeans(df2.copy(), columns, k)
+        showCustomersByClusterConsole(conn, df_clustered, k)
+        print("\n-------------------------------------------------------------")
+        time.sleep(1)
 
 # ==============================
 # GIAO DIỆN WEB FLASK
@@ -119,10 +127,6 @@ def index():
         columns = ['Age', 'Annual Income', 'Spending Score']
         df_clustered, _ = runKMeans(df2.copy(), columns, k)
 
-        # Hiển thị console trước
-        showCustomersByClusterConsole(conn, df_clustered, k)
-
-        # Sau đó hiển thị trên web
         clusters_html = {}
         for i in range(k):
             ids = df_clustered[df_clustered["cluster"] == i]["CustomerId"].tolist()
@@ -145,4 +149,6 @@ def index():
 # CHẠY SERVER
 # ==============================
 if __name__ == "__main__":
-    app.run(debug=True)
+    showAllClustersAtStartup()
+    app.run()
+
