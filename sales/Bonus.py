@@ -37,7 +37,7 @@ def queryDataset(conn, sql):
 conn = getConnect()
 
 # =====================================================================
-# (1) KHÁCH HÀNG THEO TỪNG PHIM
+# (1) PHÂN LOẠI KHÁCH HÀNG THEO TÊN PHIM (HIỂN THỊ TẤT CẢ LƯỢT THUÊ)
 # =====================================================================
 def customers_by_film(conn):
     sql = """
@@ -45,19 +45,24 @@ def customers_by_film(conn):
             f.film_id,
             f.title AS film_title,
             c.customer_id,
-            CONCAT(c.first_name, ' ', c.last_name) AS customer_name
-        FROM customer c
-        JOIN rental r ON c.customer_id = r.customer_id
-        JOIN inventory i ON r.inventory_id = i.inventory_id
-        JOIN film f ON i.film_id = f.film_id
-        ORDER BY f.title, customer_name;
+            c.first_name,
+            c.last_name,
+            c.email,
+            r.rental_id,
+            r.rental_date,
+            r.return_date
+        FROM film f
+        JOIN inventory i ON i.film_id = f.film_id
+        JOIN rental r ON r.inventory_id = i.inventory_id
+        JOIN customer c ON c.customer_id = r.customer_id
+        ORDER BY f.film_id, c.customer_id, r.rental_date;
     """
     df = queryDataset(conn, sql)
     return df
 
 
 # =====================================================================
-# (2) KHÁCH HÀNG THEO CATEGORY (CẬP NHẬT CHUẨN)
+# (2) PHÂN LOẠI KHÁCH HÀNG THEO CATEGORY (CHUẨN ĐỀ BÀI)
 # =====================================================================
 def customers_by_category(conn):
     sql = """
@@ -212,8 +217,8 @@ if __name__ == "__main__":
     print("===============================================")
     print("PHÂN TÍCH KHÁCH HÀNG TỪ CSDL SAKILA")
     print("Thực hiện 3 yêu cầu trong đề bài:")
-    print(" (1) Liệt kê khách hàng theo từng phim họ đã thuê")
-    print(" (2) Liệt kê khách hàng theo từng category (cập nhật có email, DISTINCT)")
-    print(" (3) Gom cụm khách hàng bằng K-Means theo mức độ quan tâm, có nút lọc cụm")
+    print(" (1) Liệt kê khách hàng theo từng phim họ đã thuê (có cả trùng, theo lượt thuê)")
+    print(" (2) Liệt kê khách hàng theo từng category (có email, DISTINCT)")
+    print(" (3) Gom cụm khách hàng bằng K-Means theo mức độ quan tâm, có lọc cụm")
     print("===============================================\n")
     app.run()
