@@ -57,23 +57,24 @@ def customers_by_film(conn):
 
 
 # =====================================================================
-# (2) KHÁCH HÀNG THEO CATEGORY
+# (2) KHÁCH HÀNG THEO CATEGORY (CẬP NHẬT CHUẨN)
 # =====================================================================
 def customers_by_category(conn):
     sql = """
-        SELECT 
+        SELECT DISTINCT
             cat.category_id,
-            ANY_VALUE(cat.name) AS category_name,
+            cat.name AS category_name,
             c.customer_id,
-            ANY_VALUE(CONCAT(c.first_name, ' ', c.last_name)) AS customer_name
+            c.first_name,
+            c.last_name,
+            c.email
         FROM category cat
-        JOIN film_category fc ON cat.category_id = fc.category_id
-        JOIN film f ON fc.film_id = f.film_id
-        JOIN inventory i ON f.film_id = i.film_id
-        JOIN rental r ON i.inventory_id = r.inventory_id
-        JOIN customer c ON r.customer_id = c.customer_id
-        GROUP BY cat.category_id, c.customer_id
-        ORDER BY category_name, customer_name;
+        JOIN film_category fc ON fc.category_id = cat.category_id
+        JOIN film f ON f.film_id = fc.film_id
+        JOIN inventory i ON i.film_id = f.film_id
+        JOIN rental r ON r.inventory_id = i.inventory_id
+        JOIN customer c ON c.customer_id = r.customer_id
+        ORDER BY cat.category_id, c.customer_id;
     """
     df = queryDataset(conn, sql)
     return df
@@ -189,27 +190,16 @@ def index():
 
         elif task == "2":
             df = customers_by_category(conn)
-            table_html = df.head(100).to_html(classes="table table-bordered table-sm", index=False)
+            table_html = df.to_html(classes="table table-bordered table-sm", index=False)
 
         elif task == "3":
             df, img64 = customer_interest_clusters(conn, k_val)
-
-            # Gom các cụm riêng biệt
-            clusters = {}
-            for c_id, group in df.groupby("cluster"):
-                clusters[c_id] = group
-
-            # Kiểm tra nếu có chọn lọc cụm cụ thể
+            clusters = {cid: grp for cid, grp in df.groupby("cluster")}
             filter_cluster = request.form.get("filter_cluster")
-            if filter_cluster is not None:
-                cluster_id = int(filter_cluster)
-                if cluster_id in clusters:
-                    df_show = clusters[cluster_id]
-                else:
-                    df_show = df
+            if filter_cluster is not None and int(filter_cluster) in clusters:
+                df_show = clusters[int(filter_cluster)]
             else:
                 df_show = df
-
             table_html = df_show.head(100).to_html(classes="table table-bordered table-sm", index=False)
 
     return render_template_string(html, table=table_html, img=img64, task=task, clusters=clusters, k_val=k_val)
@@ -223,7 +213,7 @@ if __name__ == "__main__":
     print("PHÂN TÍCH KHÁCH HÀNG TỪ CSDL SAKILA")
     print("Thực hiện 3 yêu cầu trong đề bài:")
     print(" (1) Liệt kê khách hàng theo từng phim họ đã thuê")
-    print(" (2) Liệt kê khách hàng theo từng category, bỏ trùng lặp")
+    print(" (2) Liệt kê khách hàng theo từng category (cập nhật có email, DISTINCT)")
     print(" (3) Gom cụm khách hàng bằng K-Means theo mức độ quan tâm, có nút lọc cụm")
     print("===============================================\n")
     app.run()
