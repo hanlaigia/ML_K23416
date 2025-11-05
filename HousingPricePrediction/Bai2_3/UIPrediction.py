@@ -19,10 +19,10 @@ class UIPrediction:
     fileName = ""
 
     def __init__(self):
-        self.base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # thư mục HousingPricePrediction
+        self.base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         self.dataset_dir = os.path.join(self.base_dir, "dataset")
         self.default_dataset = os.path.join(self.dataset_dir, "USA_Housing.csv")
-        self.model_dir = os.path.join(self.base_dir, "Bai2_3")  # nơi lưu các model .zip/.pkl
+        self.model_dir = os.path.join(self.base_dir, "Bai2_3")
 
     def create_ui(self):
         self.root = Tk()

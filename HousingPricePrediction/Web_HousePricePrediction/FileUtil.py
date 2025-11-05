@@ -9,15 +9,14 @@ class FileUtil:
         Lưu model vào file (hỗ trợ .pkl hoặc .zip)
         """
         try:
-            # Nếu là file zip thì dùng joblib (nén tốt hơn)
             if filename.endswith(".zip"):
                 joblib.dump(model, filename)
             else:
                 with open(filename, 'wb') as f:
                     pickle.dump(model, f)
-            print(f"✅ Model saved successfully: {filename}")
+            print(f"Model saved successfully: {filename}")
         except Exception as e:
-            print("❌ Error while saving model:", e)
+            print("Error while saving model:", e)
 
     @staticmethod
     def loadmodel(filename):
